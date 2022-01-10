@@ -63,4 +63,21 @@ class MySystem {
     fun truncateFile(fileLink: String, size: Int) {
         fsDriver. truncateFile(fileLink,size)
     }
+
+    fun makeDirectory(path: String) {
+        fsDriver.addDirectory(path)
+    }
+
+
+    fun removeDirectory(path: String) {
+        fsDriver.deleteDirectory(path)
+    }
+
+    fun goToDir(path: String) {
+        fsDriver.changeCurrentDirectory(path)
+    }
+
+    fun createSymbolicLink(link: String, path: String) {
+        fsDriver.addSymbolicLink(link, path)
+    }
 }

@@ -74,6 +74,27 @@ class CommandsParser {
                         "expected for $command [name] [size] \n")
                 return Command(Commands.TRUNC, splitLine[1], splitLine[2])
             }
+            "mkdir"->{
+                if (splitLine.size != 2) throw SyntaxError("Wrong format for command $command \n" +
+                        "expected for $command [name] \n")
+                return Command(Commands.MKDIR, splitLine[1])
+            }
+            "rmdir"->{
+                if (splitLine.size != 2) throw SyntaxError("Wrong format for command $command \n" +
+                        "expected for $command [name] \n")
+                return Command(Commands.RMDIR, splitLine[1])
+            }
+            "cd"->{
+                if (splitLine.size != 2) throw SyntaxError("Wrong format for command $command \n" +
+                        "expected for $command [path] \n")
+                return Command(Commands.CD, splitLine[1])
+            }
+            "symlink"->{
+                if (splitLine.size != 3) throw SyntaxError("Wrong format for command $command \n" +
+                        "expected for $command [name] \n")
+                return Command(Commands.SYMLINK, splitLine[1], splitLine[2])
+            }
+
           else->throw SyntaxError("No such command found as $command")
         }
     }

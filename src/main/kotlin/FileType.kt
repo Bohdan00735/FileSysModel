@@ -1,4 +1,5 @@
 enum class FileType {
     DIRECTORY,
-    REGULAR
+    REGULAR,
+    SYMBOLIC
 }

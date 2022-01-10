@@ -13,5 +13,9 @@ enum class Commands {
     WRITE,
     LINK,
     UNLINK,
-    TRUNC
+    TRUNC,
+    MKDIR,
+    RMDIR,
+    CD,
+    SYMLINK
 }

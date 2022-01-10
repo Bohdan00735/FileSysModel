@@ -67,4 +67,42 @@ class FileDescriptor() {
             fsDriver.writeBlock(allBlockLinks[blockIndex], blockData.toByteArray())
         }
     }
+
+    fun write(offset: Int, data:ByteArray, fsDriver: FSDriver) {
+        //writes 1 in set bounds
+        val blockSize = fsDriver.sizeOfBlock
+        val startBlock = offset/blockSize
+        val endBlock = (offset + data.size)/blockSize
+        if (endBlock >= allBlockLinks.size) throw SystemError("wrong offset/size")
+        var blockData = fsDriver.readBlockToArray(allBlockLinks[startBlock]) as ArrayList
+        var dataIndex = 0
+        for (i in 0 until (offset - startBlock*blockSize)){
+            blockData[i] = data[dataIndex]
+            dataIndex++
+        }
+        fsDriver.writeBlock(allBlockLinks[startBlock], blockData.toByteArray())
+        blockData = fsDriver.readBlockToArray(allBlockLinks[endBlock]) as ArrayList
+        for (i in 7 downTo blockSize - (offset+data.size)-endBlock*blockSize){
+            blockData[i] = data[dataIndex]
+            dataIndex++
+        }
+        fsDriver.writeBlock(allBlockLinks[endBlock], blockData.toByteArray())
+
+        for (blockIndex in startBlock+1 until endBlock){
+            blockData = fsDriver.readBlockToArray(allBlockLinks[blockIndex]) as ArrayList
+            for (i in blockData.indices){
+                blockData[i] = data[dataIndex]
+                dataIndex++
+            }
+            fsDriver.writeBlock(allBlockLinks[blockIndex], blockData.toByteArray())
+        }
+    }
+
+    fun readAll(fsDriver: FSDriver): String {
+        val data = StringBuilder()
+        for (link in allBlockLinks){
+            data.append(fsDriver.readBlock(link))
+        }
+        return data.toString()
+    }
 }

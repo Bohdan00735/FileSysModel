@@ -1,6 +1,6 @@
 import errors.SystemError
 
-class Descriptor(var fileType: FileType, var size: Int) {
+open class Descriptor(var fileType: FileType, var size: Int) {
     constructor() : this(FileType.REGULAR, Int.MAX_VALUE)
     constructor(line: String):this(){
         val descIter = line.split("\n").iterator()
@@ -11,6 +11,15 @@ class Descriptor(var fileType: FileType, var size: Int) {
             else FileType.DIRECTORY
         }else return
 
+        if (fileType == FileType.DIRECTORY){
+            if (descIter.hasNext()){
+                currentPath = descIter.next()
+            }else return
+
+            if (descIter.hasNext()){
+                rootPath = descIter.next()
+            }else return
+        }
         if (descIter.hasNext()){
             size = descIter.next().toInt()
         }else return
@@ -32,12 +41,28 @@ class Descriptor(var fileType: FileType, var size: Int) {
         }else return
     }
 
+    constructor(fileType: FileType, size: Int, currentDir: String, rootDirectory: String) : this(fileType, size){
+        currentPath = currentDir
+        rootPath = rootDirectory
+    }
     private var numOfLinks = 1
     var straightLink1:Int? = null
     var straightLink2:Int? = null
     var blockLink:Int? = null
+    private var currentPath: String? = null
+    private var rootPath:String? = null
 
     override fun toString(): String {
+        if (fileType == FileType.DIRECTORY) {
+            return "$fileType \n" +
+                    "$currentPath\n" +
+                    "$rootPath\n"+
+                    "$size \n" +
+                    "$numOfLinks \n" +
+                    "$straightLink1 \n" +
+                    "$straightLink2 \n" +
+                    "$blockLink"
+        }
         return "$fileType \n" +
                 "$size \n" +
                 "$numOfLinks \n" +
@@ -179,5 +204,17 @@ class Descriptor(var fileType: FileType, var size: Int) {
             return
         }
         throw SystemError("No more links to delete")
+    }
+
+    fun getRootPath(): String {
+        if (rootPath == null){
+            if (currentPath != null) return currentPath!! //that is root of tree
+            throw SystemError("not Directory")
+        }
+        return rootPath!!
+    }
+
+    fun isEmpty(): Boolean {
+        return straightLink1 == null
     }
 }

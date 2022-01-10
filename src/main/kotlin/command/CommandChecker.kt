@@ -47,6 +47,18 @@ class CommandChecker(private val system: MySystem) {
             TRUNC -> {
                 system.truncateFile(command.parameter1!!,isInt(command.parameter2!!) )
             }
+            MKDIR->{
+                system.makeDirectory(command.parameter1!!)
+            }
+            RMDIR->{
+                system.removeDirectory(command.parameter1!!)
+            }
+            CD->{
+                system.goToDir(command.parameter1!!)
+            }
+            SYMLINK->{
+                system.createSymbolicLink(command.parameter1!!, command.parameter2!!)
+            }
         }
     }
 

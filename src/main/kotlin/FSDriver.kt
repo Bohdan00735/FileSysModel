@@ -11,6 +11,8 @@ class FSDriver {
     private val blocksForDescriptor = maxSizeOfDescriptor/sizeOfBlock + 1 // use it in case if size of block smaller than descriptor
     private var blocksForBitMap: Int? = null
     private var numOfDescriptors = 0
+    private var currentDirectoryDesc = 0
+    private val recursionLimit = 50
 
     fun makeFS(num: Int) {
         numOfDescriptors = num
@@ -31,7 +33,7 @@ class FSDriver {
     }
 
     fun getDescriptor(id: Int): Descriptor {
-        val descriptorStartBit = calculateBlockOfDescriptor(id)*8
+        val descriptorStartBit = calculateBlockOfDescriptor(id)
         return Descriptor(device.getChartArray(descriptorStartBit).toString())
     }
     
@@ -125,7 +127,8 @@ class FSDriver {
     }
 
     fun addLink(name: String, descriptorIndex: Int) {
-        getDescriptor(0).writeToTheEnd("$name $descriptorIndex", this)
+        getDescriptor(getFileDescriptorByPath(name)).writeToTheEnd("${name.split("/").last()} " +
+                "$descriptorIndex", this)
     }
 
     fun compareWithBlockSize(size: Int): Boolean {
@@ -138,7 +141,7 @@ class FSDriver {
 
     fun createFileDescriptor(nameLink: String): Int {
         val index = getFreeBlock()
-        val descriptorId = findDescriptorByName(nameLink)
+        val descriptorId = getFileDescriptorByPath(nameLink)
         val descriptor = getDescriptor(descriptorId)
         descriptor.addLinks()
         writeBlock(calculateBlockOfDescriptor(descriptorId), descriptor.toString().toByteArray() )
@@ -146,8 +149,17 @@ class FSDriver {
         return index
     }
 
-    private fun findDescriptorByName(nameLink: String): Int {
-        val allLinks = device.getCharArrayForList(getDescriptor(0).getAllDataBlocks(this))
+    fun createFileDescriptor(descriptorId: Int): Int {
+        val index = getFreeBlock()
+        val descriptor = getDescriptor(descriptorId)
+        descriptor.addLinks()
+        writeBlock(calculateBlockOfDescriptor(descriptorId), descriptor.toString().toByteArray() )
+        writeBlock(index, FileDescriptor(descriptor.getAllDataBlocks(this), descriptorId).toString().toByteArray())
+        return index
+    }
+
+    private fun findDescriptorByName(nameLink: String, descriptorId: Int): Int {
+        val allLinks = device.getCharArrayForList(getDescriptor(descriptorId).getAllDataBlocks(this))
         for(line in allLinks.toString().split("\n")){
             val splitLine = line.split(" ")
             if (splitLine[0] == nameLink) return splitLine[1].toInt()
@@ -184,9 +196,11 @@ class FSDriver {
 
     fun createNewLink(newLink: String, linkOnFile: String) {
 
-        val descriptorId = findDescriptorByName(linkOnFile)
-        addLink(newLink, descriptorId)
+        val descriptorId = getFileDescriptorByPath(linkOnFile)
         val descriptor = getDescriptor(descriptorId)
+        if (descriptor.fileType == FileType.DIRECTORY) throw SystemError("cant create link on directory")
+        addLink(newLink, descriptorId)
+
         descriptor.addLinks()
         writeDescriptor(descriptorId, descriptor)
     }
@@ -196,8 +210,9 @@ class FSDriver {
     }
 
     fun deleteLink(link: String) {
-        val descriptorId = findDescriptorByName(link)
+        val descriptorId = getFileDescriptorByPath(link)
         var descriptor = getDescriptor(descriptorId)
+        if (descriptor.fileType == FileType.DIRECTORY) throw SystemError("can not unlink directory")
         if (!descriptor.decreaseLink()){
             clearDescriptor(descriptor, descriptorId)
         }
@@ -219,7 +234,7 @@ class FSDriver {
     }
 
     fun truncateFile(fileLink: String, size: Int) {
-        val descriptor = getDescriptor(findDescriptorByName(fileLink))
+        val descriptor = getDescriptor(getFileDescriptorByPath(fileLink))
         val definition = size - descriptor.size
         if (definition > 0){
             for (i in 0..(definition/sizeOfBlock)){
@@ -232,4 +247,74 @@ class FSDriver {
         }
     }
 
+    fun addDirectory(path: String) {
+        val rootDirectory = getDirByPath(path, currentDirectoryDesc, 1)
+        createDirectoryDescriptor(rootDirectory, path.split("/").last())
+    }
+
+    private fun createDirectoryDescriptor(rootDirectory: Int, nameLink: String): Int {
+        val freeIndex = findNextFreeBlock(blocksForBitMap!!+1)
+        if ((freeIndex- blocksForBitMap!!) > numOfDescriptors) throw SystemError("Max num of descriptors achieved")
+        val rootDescriptor = getDescriptor(rootDirectory)
+        rootDescriptor.writeToTheEnd("$nameLink $freeIndex", this)
+        writeBlock(freeIndex, Descriptor(FileType.DIRECTORY, 0,rootDescriptor.getRootPath()+"/$nameLink" ,rootDescriptor.getRootPath()).toString().toByteArray())
+        return freeIndex
+    }
+
+    private fun getFileDescriptorByPath(path:String): Int {
+        return findDescriptorByName(path.split("/").last(),
+            getDirByPath(path.slice(0 until path.length - 1), currentDirectoryDesc, 1))
+    }
+
+    private fun getDirByPath(path: String, dir: Int, recursionCounter: Int): Int {
+        if (path.isEmpty()) return dir
+        if (recursionCounter+1 == recursionLimit) throw SystemError("path cycled error")
+        return when (val step = path.split("/").first()){
+            "."-> getDirByPath(path.slice(1 until path.length), dir, recursionCounter+1)
+            ".." -> getDirByPath(path.slice(1 until path.length), getDirByPath(getDescriptor(dir).getRootPath(),0, recursionCounter +1),recursionCounter+1)
+            ""-> dir
+            else ->{
+                val descriptorId = findDescriptorByName(step, dir)
+                val descriptor = getDescriptor(descriptorId)
+                if (descriptor.fileType == FileType.DIRECTORY){
+                    getDirByPath(path.slice(1 until path.length), descriptorId, recursionCounter+1)
+                }
+                if (descriptor.fileType == FileType.SYMBOLIC){
+                    getDirByPath(readSymbolicPath(descriptorId)+path.slice(1 until path.length),dir,recursionCounter+1)
+                }
+                throw SystemError("$step no such directory")
+            }
+        }
+    }
+
+    private fun readSymbolicPath(descriptorId: Int): String {
+        val fdId = createFileDescriptor(descriptorId)
+        val path = getFileDescriptor(fdId).readAll(this)
+        deleteFileDescriptor(fdId)
+        return path
+    }
+
+    fun deleteDirectory(path: String) {
+        val dirId = getDirByPath(path, currentDirectoryDesc, 1)
+        if (getDescriptor(dirId).isEmpty()){
+            clearBlock(calculateBlockOfDescriptor(dirId))
+        }else{
+            throw SystemError("directory is not empty")
+        }
+    }
+
+    fun changeCurrentDirectory(path: String) {
+        currentDirectoryDesc = getDirByPath(path,currentDirectoryDesc, 1)
+        println("current directory : "+ getDescriptor(currentDirectoryDesc).getRootPath())
+    }
+
+    fun addSymbolicLink(link: String, path: String) {
+        val descId = createDescriptor(FileType.SYMBOLIC)
+        addLink(link, descId)
+        truncateFile(link, path.toByteArray().size)
+        val fdId = createFileDescriptor(link)
+        val fd = getFileDescriptor(fdId)
+        fd.write(0,path.toByteArray(), this)
+        deleteFileDescriptor(fdId)
+    }
 }
