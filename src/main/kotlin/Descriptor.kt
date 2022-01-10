@@ -29,14 +29,20 @@ open class Descriptor(var fileType: FileType, var size: Int) {
         }else return
 
         if (descIter.hasNext()){
-            straightLink1 = descIter.next().toInt()
+            val next = descIter.next()
+            if (next == "null") return
+            straightLink1 = next.toInt()
         }else return
 
         if (descIter.hasNext()){
+            val next = descIter.next()
+            if (next == "null") return
             straightLink2 = descIter.next().toInt()
         }else return
 
         if (descIter.hasNext()){
+            val next = descIter.next()
+            if (next == "null") return
             blockLink = descIter.next().toInt()
         }else return
     }
@@ -54,20 +60,20 @@ open class Descriptor(var fileType: FileType, var size: Int) {
 
     override fun toString(): String {
         if (fileType == FileType.DIRECTORY) {
-            return "$fileType \n" +
+            return "$fileType\n" +
                     "$currentPath\n" +
                     "$rootPath\n"+
-                    "$size \n" +
-                    "$numOfLinks \n" +
-                    "$straightLink1 \n" +
-                    "$straightLink2 \n" +
+                    "$size\n" +
+                    "$numOfLinks\n" +
+                    "$straightLink1\n" +
+                    "$straightLink2\n" +
                     "$blockLink"
         }
-        return "$fileType \n" +
-                "$size \n" +
-                "$numOfLinks \n" +
-                "$straightLink1 \n" +
-                "$straightLink2 \n" +
+        return "$fileType\n" +
+                "$size\n" +
+                "$numOfLinks\n" +
+                "$straightLink1\n" +
+                "$straightLink2\n" +
                 "$blockLink"
     }
 
@@ -216,5 +222,10 @@ open class Descriptor(var fileType: FileType, var size: Int) {
 
     fun isEmpty(): Boolean {
         return straightLink1 == null
+    }
+
+    fun getCurrentPath(): String {
+        if (currentPath != null) return currentPath!!
+        throw SystemError("not a dir")
     }
 }

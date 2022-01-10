@@ -59,6 +59,7 @@ class CommandChecker(private val system: MySystem) {
             SYMLINK->{
                 system.createSymbolicLink(command.parameter1!!, command.parameter2!!)
             }
+            PWD-> system.showCurrentDirectory()
         }
     }
 

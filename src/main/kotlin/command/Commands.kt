@@ -17,5 +17,6 @@ enum class Commands {
     MKDIR,
     RMDIR,
     CD,
-    SYMLINK
+    SYMLINK,
+    PWD
 }

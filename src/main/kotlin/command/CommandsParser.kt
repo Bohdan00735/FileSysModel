@@ -94,6 +94,9 @@ class CommandsParser {
                         "expected for $command [name] \n")
                 return Command(Commands.SYMLINK, splitLine[1], splitLine[2])
             }
+            "pwd"->{
+                return Command(Commands.PWD)
+            }
 
           else->throw SyntaxError("No such command found as $command")
         }

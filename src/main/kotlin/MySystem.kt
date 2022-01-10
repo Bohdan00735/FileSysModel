@@ -27,7 +27,7 @@ class MySystem {
     }
 
     fun showAllFilesInCurrentFolder() {
-        fsDriver.readDirectoryData()
+        println(fsDriver.readDirectoryData())
     }
 
     fun createFile(name: String) {
@@ -77,7 +77,11 @@ class MySystem {
         fsDriver.changeCurrentDirectory(path)
     }
 
-    fun createSymbolicLink(link: String, path: String) {
-        fsDriver.addSymbolicLink(link, path)
+    fun createSymbolicLink(path: String, link: String) {
+        fsDriver.addSymbolicLink(path, link)
+    }
+
+    fun showCurrentDirectory() {
+        println(fsDriver.getCurrentDirectoryPath())
     }
 }

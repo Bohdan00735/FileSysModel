@@ -10,7 +10,7 @@ class FSDriver {
     private val maxSizeOfDescriptor = 67 //calculated earlier
     private val blocksForDescriptor = maxSizeOfDescriptor/sizeOfBlock + 1 // use it in case if size of block smaller than descriptor
     private var blocksForBitMap: Int? = null
-    private var numOfDescriptors = 0
+    private var numOfDescriptors = 10
     private var currentDirectoryDesc = 0
     private val recursionLimit = 50
 
@@ -23,6 +23,7 @@ class FSDriver {
         val size = device.connect()
         numOfBlocks = size/sizeOfBlock
         blocksForBitMap = ((numOfBlocks!!.toDouble()/8)/ numOfBlocks!!).toInt() + 1
+        writeDescriptor(0, Descriptor(FileType.DIRECTORY, 0, "/", "/"))
     }
 
     fun deleteAllInfoAboutDevice() {
@@ -34,7 +35,7 @@ class FSDriver {
 
     fun getDescriptor(id: Int): Descriptor {
         val descriptorStartBit = calculateBlockOfDescriptor(id)
-        return Descriptor(device.getChartArray(descriptorStartBit).toString())
+        return Descriptor(String(device.getChartArray(descriptorStartBit).toByteArray()) )
     }
     
     
@@ -49,6 +50,7 @@ class FSDriver {
 
     private fun parseDirInfo(data: List<Byte>): String {
         val dirInfo = StringBuilder()
+        if (data.isEmpty()) return "dir is empty"
         for (line in data.toString().split("\n")){
             val splitLine = line.split(" ")
             dirInfo.append(splitLine[0] + getDescriptor(splitLine[1].toInt()).getShortInfo() + "\n")
@@ -77,9 +79,9 @@ class FSDriver {
     }
 
     private fun setInBlockMap(index: Int) {
-        val blockIndex = (index/8)/sizeOfBlock
-        val block = device.getChartArray(blockIndex) as ArrayList
-        val byteIndex = index/8 - sizeOfBlock*blockIndex
+        val blockIndex = (index)/sizeOfBlock
+        val block = device.getChartArray(blockIndex).toMutableList()
+        val byteIndex = index - sizeOfBlock*blockIndex
         val bitIndexInByte = index - (index/8)*8
         val base = 2.0
         block[byteIndex] = (block[byteIndex].toInt() + base.pow(bitIndexInByte).toInt()).toByte()
@@ -280,7 +282,7 @@ class FSDriver {
                     getDirByPath(path.slice(1 until path.length), descriptorId, recursionCounter+1)
                 }
                 if (descriptor.fileType == FileType.SYMBOLIC){
-                    getDirByPath(readSymbolicPath(descriptorId)+path.slice(1 until path.length),dir,recursionCounter+1)
+                    getDirByPath(readSymbolicPath(descriptorId)+path.slice(1 until path.length),0,recursionCounter+1)
                 }
                 throw SystemError("$step no such directory")
             }
@@ -308,7 +310,7 @@ class FSDriver {
         println("current directory : "+ getDescriptor(currentDirectoryDesc).getRootPath())
     }
 
-    fun addSymbolicLink(link: String, path: String) {
+    fun addSymbolicLink(path: String, link: String) {
         val descId = createDescriptor(FileType.SYMBOLIC)
         addLink(link, descId)
         truncateFile(link, path.toByteArray().size)
@@ -316,5 +318,9 @@ class FSDriver {
         val fd = getFileDescriptor(fdId)
         fd.write(0,path.toByteArray(), this)
         deleteFileDescriptor(fdId)
+    }
+
+    fun getCurrentDirectoryPath(): String {
+        return getDescriptor(currentDirectoryDesc).getCurrentPath()
     }
 }
